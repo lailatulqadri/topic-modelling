@@ -9,3 +9,5 @@ sentence-transformers
 scikit-learn
 umap-learn
 hdbscan
+torch
+torchvision
