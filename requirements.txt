@@ -2,3 +2,10 @@ streamlit
 pandas
 numpy
 openpyxl
+streamlit
+plotly
+bertopic
+sentence-transformers
+scikit-learn
+umap-learn
+hdbscan
