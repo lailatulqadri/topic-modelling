@@ -1,6 +1,5 @@
 # ============================================================
 # DYNAMIC TOPIC MODELLING SYSTEM
-# Optimised Streamlit + BERTopic Version
 # ============================================================
 
 import streamlit as st
@@ -8,10 +7,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
-
-# ============================================================
-# MODULE IMPORTS
-# ============================================================
 
 from modules.data_loader import (
     load_csv,
@@ -46,21 +41,22 @@ st.set_page_config(
 
 
 # ============================================================
-# CACHED EMBEDDING FUNCTIONS
+# CACHE EMBEDDING MODEL
 # ============================================================
 
 @st.cache_resource
 def get_cached_embedding_model(
-    model_name,
+    model_name
 ):
-    """
-    Load SentenceTransformer once and keep it in memory.
-    """
 
     return load_embedding_model(
         model_name
     )
 
+
+# ============================================================
+# CACHE EMBEDDINGS
+# ============================================================
 
 @st.cache_data(
     show_spinner=False,
@@ -70,27 +66,19 @@ def generate_cached_embeddings(
     documents,
     model_name,
 ):
-    """
-    Generate embeddings for the complete valid corpus.
 
-    Streamlit caches the result using:
-        documents
-        model_name
-
-    If both remain unchanged, embeddings are reused.
-    """
-
-    model = get_cached_embedding_model(
-        model_name
+    model = (
+        get_cached_embedding_model(
+            model_name
+        )
     )
 
-    embeddings = create_embeddings(
+
+    return create_embeddings(
         documents=list(documents),
         embedding_model=model,
         batch_size=64,
     )
-
-    return embeddings
 
 
 # ============================================================
@@ -103,7 +91,7 @@ st.title(
 
 st.caption(
     "Explore topics dynamically across relevance, sentiment, "
-    "emotion, source, time, and other dataset categories."
+    "emotion, source, time and other dataset categories."
 )
 
 st.divider()
@@ -113,10 +101,8 @@ st.divider()
 # SESSION STATE
 # ============================================================
 
-if "data" not in st.session_state:
-    st.session_state.data = None
-
 if "filter_count" not in st.session_state:
+
     st.session_state.filter_count = 1
 
 
@@ -130,14 +116,16 @@ with st.sidebar:
         "Dataset"
     )
 
-    uploaded_file = st.file_uploader(
-        "Upload CSV file",
-        type=["csv"],
+    uploaded_file = (
+        st.file_uploader(
+            "Upload CSV file",
+            type=["csv"],
+        )
     )
 
 
 # ============================================================
-# LOAD DATA
+# CHECK FILE
 # ============================================================
 
 if uploaded_file is None:
@@ -149,26 +137,29 @@ if uploaded_file is None:
     st.stop()
 
 
+# ============================================================
+# LOAD DATA
+# ============================================================
+
 try:
 
-    df, encoding = load_csv(
-        uploaded_file
+    df, encoding = (
+        load_csv(
+            uploaded_file
+        )
     )
 
 except Exception as e:
 
     st.error(
-        f"Unable to load the dataset:\n\n{e}"
+        f"Unable to load dataset:\n\n{e}"
     )
 
     st.stop()
 
 
-st.session_state.data = df
-
-
 # ============================================================
-# 1. DATASET INFORMATION
+# 1. DATASET OVERVIEW
 # ============================================================
 
 st.subheader(
@@ -176,10 +167,12 @@ st.subheader(
 )
 
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = (
+    st.columns(4)
+)
 
 
-with col1:
+with c1:
 
     st.metric(
         "Rows",
@@ -187,7 +180,7 @@ with col1:
     )
 
 
-with col2:
+with c2:
 
     st.metric(
         "Columns",
@@ -195,19 +188,15 @@ with col2:
     )
 
 
-with col3:
-
-    duplicates = (
-        df.duplicated().sum()
-    )
+with c3:
 
     st.metric(
         "Duplicate Rows",
-        f"{duplicates:,}",
+        f"{df.duplicated().sum():,}",
     )
 
 
-with col4:
+with c4:
 
     st.metric(
         "Encoding",
@@ -250,7 +239,7 @@ with st.expander(
 
 
 # ============================================================
-# 2. TEXT COLUMN
+# 2. SELECT TEXT COLUMN
 # ============================================================
 
 st.divider()
@@ -280,19 +269,18 @@ else:
 
 default_index = (
     list(df.columns)
-    .index(default_text_column)
+    .index(
+        default_text_column
+    )
 )
 
 
-text_column = st.selectbox(
-    "Column containing text for topic modelling",
-    options=df.columns.tolist(),
-    index=default_index,
-)
-
-
-st.caption(
-    f"Selected text column: **{text_column}**"
+text_column = (
+    st.selectbox(
+        "Column containing text for topic modelling",
+        options=df.columns.tolist(),
+        index=default_index,
+    )
 )
 
 
@@ -300,21 +288,21 @@ st.caption(
 # PREPARE TEXT
 # ============================================================
 
-working_df = prepare_text_data(
-    df,
-    text_column,
+working_df = (
+    prepare_text_data(
+        df,
+        text_column,
+    )
 )
 
-
-# ============================================================
-# IMPORTANT:
-# CREATE STABLE EMBEDDING INDEX
-# ============================================================
 
 working_df = (
     working_df
     .reset_index(drop=True)
 )
+
+
+# Stable index for embedding lookup
 
 working_df[
     "_embedding_index"
@@ -327,12 +315,12 @@ working_df[
 # TEXT STATISTICS
 # ============================================================
 
-col1, col2, col3 = (
+c1, c2, c3 = (
     st.columns(3)
 )
 
 
-with col1:
+with c1:
 
     st.metric(
         "Original Records",
@@ -340,7 +328,7 @@ with col1:
     )
 
 
-with col2:
+with c2:
 
     st.metric(
         "Valid Text Records",
@@ -348,7 +336,7 @@ with col2:
     )
 
 
-with col3:
+with c3:
 
     removed = (
         len(df)
@@ -363,7 +351,7 @@ with col3:
 
 
 # ============================================================
-# 3. DYNAMIC CATEGORY FILTERS
+# 3. DYNAMIC FILTERS
 # ============================================================
 
 st.divider()
@@ -373,14 +361,9 @@ st.subheader(
 )
 
 st.caption(
-    "Add one or more filters. Multiple filters are combined "
-    "using AND logic."
+    "Multiple filters are combined using AND logic."
 )
 
-
-# ============================================================
-# DETECT FILTER COLUMNS
-# ============================================================
 
 categorical_columns = (
     detect_categorical_columns(
@@ -391,9 +374,13 @@ categorical_columns = (
 
 
 categorical_columns = [
-    c
-    for c in categorical_columns
-    if c not in [
+
+    column
+
+    for column
+    in categorical_columns
+
+    if column not in [
         "_topic_text",
         "_embedding_index",
     ]
@@ -401,15 +388,15 @@ categorical_columns = [
 
 
 # ============================================================
-# FILTER CONTROLS
+# FILTER BUTTONS
 # ============================================================
 
-col_add, col_remove, col_reset = (
+c1, c2, c3 = (
     st.columns(3)
 )
 
 
-with col_add:
+with c1:
 
     if st.button(
         "➕ Add Filter",
@@ -421,13 +408,14 @@ with col_add:
         st.rerun()
 
 
-with col_remove:
+with c2:
 
     if st.button(
         "➖ Remove Last Filter",
         width="stretch",
         disabled=(
-            st.session_state.filter_count <= 1
+            st.session_state.filter_count
+            <= 1
         ),
     ):
 
@@ -436,7 +424,7 @@ with col_remove:
         st.rerun()
 
 
-with col_reset:
+with c3:
 
     if st.button(
         "🔄 Reset Filters",
@@ -445,16 +433,17 @@ with col_reset:
 
         st.session_state.filter_count = 1
 
-        keys_to_delete = [
-            key
-            for key in st.session_state.keys()
+        for key in list(
+            st.session_state.keys()
+        ):
+
             if key.startswith(
                 "dynamic_filter_"
-            )
-        ]
+            ):
 
-        for key in keys_to_delete:
-            del st.session_state[key]
+                del st.session_state[
+                    key
+                ]
 
         st.rerun()
 
@@ -476,28 +465,32 @@ for i in range(
         f"#### Filter {i + 1}"
     )
 
+
     available_columns = [
-        c
-        for c in categorical_columns
-        if c not in used_columns
+
+        column
+
+        for column
+        in categorical_columns
+
+        if column not in used_columns
     ]
+
 
     if not available_columns:
 
         st.info(
             "All available categorical columns "
-            "have already been selected."
+            "have been selected."
         )
 
         break
 
-    # --------------------------------------------------------
-    # DEFAULT COLUMN
-    # --------------------------------------------------------
 
-    default_index = 0
+    default_filter_index = 0
 
-    # First filter: relevance
+
+    # First filter -> relevance
 
     if i == 0:
 
@@ -507,10 +500,12 @@ for i in range(
 
             if "relevance" in column.lower():
 
-                default_index = j
+                default_filter_index = j
+
                 break
 
-    # Second filter: sentiment
+
+    # Second filter -> sentiment
 
     elif i == 1:
 
@@ -520,27 +515,28 @@ for i in range(
 
             if "sentiment" in column.lower():
 
-                default_index = j
+                default_filter_index = j
+
                 break
 
 
-    col1, col2 = st.columns(
-        [1, 2]
+    c1, c2 = (
+        st.columns(
+            [1, 2]
+        )
     )
 
 
-    # --------------------------------------------------------
-    # SELECT COLUMN
-    # --------------------------------------------------------
-
-    with col1:
+    with c1:
 
         selected_column = (
             st.selectbox(
                 "Column",
                 options=available_columns,
-                index=default_index,
-                key=f"dynamic_filter_column_{i}",
+                index=default_filter_index,
+                key=(
+                    f"dynamic_filter_column_{i}"
+                ),
             )
         )
 
@@ -550,10 +546,6 @@ for i in range(
     )
 
 
-    # --------------------------------------------------------
-    # SELECT VALUES
-    # --------------------------------------------------------
-
     available_values = (
         get_filter_values(
             working_df,
@@ -562,14 +554,16 @@ for i in range(
     )
 
 
-    with col2:
+    with c2:
 
         selected_values = (
             st.multiselect(
                 "Values",
                 options=available_values,
                 default=available_values,
-                key=f"dynamic_filter_values_{i}",
+                key=(
+                    f"dynamic_filter_values_{i}"
+                ),
             )
         )
 
@@ -588,17 +582,17 @@ filtered_df = (
 )
 
 
-for column, selected_values in (
+for column, values in (
     selected_filters.items()
 ):
 
-    if selected_values:
+    if values:
 
         filtered_df = (
             filtered_df[
-                filtered_df[column].isin(
-                    selected_values
-                )
+                filtered_df[
+                    column
+                ].isin(values)
             ]
             .copy()
         )
@@ -613,38 +607,38 @@ st.markdown(
 )
 
 
-if selected_filters:
-
-    summary_data = []
-
-    for column, values in (
-        selected_filters.items()
-    ):
-
-        summary_data.append(
-            {
-                "Column": column,
-
-                "Selected Values":
-                    ", ".join(
-                        map(str, values)
-                    ),
-
-                "Number Selected":
-                    len(values),
-            }
-        )
+summary_rows = []
 
 
-    filter_summary_df = (
-        pd.DataFrame(
-            summary_data
-        )
+for column, values in (
+    selected_filters.items()
+):
+
+    summary_rows.append(
+        {
+            "Column":
+                column,
+
+            "Selected Values":
+                ", ".join(
+                    map(
+                        str,
+                        values,
+                    )
+                ),
+
+            "Number Selected":
+                len(values),
+        }
     )
 
 
+if summary_rows:
+
     st.dataframe(
-        filter_summary_df,
+        pd.DataFrame(
+            summary_rows
+        ),
         width="stretch",
         hide_index=True,
     )
@@ -661,12 +655,12 @@ st.subheader(
 )
 
 
-col1, col2, col3 = (
+c1, c2, c3 = (
     st.columns(3)
 )
 
 
-with col1:
+with c1:
 
     st.metric(
         "Available Texts",
@@ -674,7 +668,7 @@ with col1:
     )
 
 
-with col2:
+with c2:
 
     st.metric(
         "Selected Texts",
@@ -682,11 +676,11 @@ with col2:
     )
 
 
-with col3:
+with c3:
 
-    if len(working_df) > 0:
+    percentage = (
 
-        percentage = (
+        (
             len(filtered_df)
             /
             len(working_df)
@@ -694,9 +688,10 @@ with col3:
             100
         )
 
-    else:
+        if len(working_df) > 0
 
-        percentage = 0
+        else 0
+    )
 
 
     st.metric(
@@ -705,47 +700,46 @@ with col3:
     )
 
 
-# ============================================================
-# VALIDATE FILTERED DATA
-# ============================================================
-
 if len(filtered_df) == 0:
 
     st.error(
-        "The current filters returned no documents."
+        "Current filters returned no documents."
     )
 
     st.stop()
 
 
-elif len(filtered_df) < 50:
+if len(filtered_df) < 50:
 
     st.warning(
         "Only a small number of documents remain. "
-        "Topic modelling results may be unstable."
+        "Topic modelling may be unstable."
     )
 
 
 # ============================================================
-# PREVIEW FILTERED CORPUS
+# PREVIEW
 # ============================================================
 
 with st.expander(
-    "Preview Filtered Corpus",
-    expanded=True,
+    "Preview Filtered Corpus"
 ):
 
-    display_columns = [
-        c
-        for c in df.columns
-        if c in filtered_df.columns
+    preview_columns = [
+
+        column
+
+        for column
+        in df.columns
+
+        if column in filtered_df.columns
     ]
+
 
     st.dataframe(
         filtered_df[
-            display_columns
+            preview_columns
         ].head(200),
-
         width="stretch",
     )
 
@@ -766,7 +760,7 @@ if categorical_columns:
     distribution_column = (
         st.selectbox(
             "View distribution for",
-            options=categorical_columns,
+            categorical_columns,
         )
     )
 
@@ -788,12 +782,14 @@ if categorical_columns:
     ]
 
 
-    col1, col2 = st.columns(
-        [1, 2]
+    c1, c2 = (
+        st.columns(
+            [1, 2]
+        )
     )
 
 
-    with col1:
+    with c1:
 
         st.dataframe(
             distribution,
@@ -802,7 +798,7 @@ if categorical_columns:
         )
 
 
-    with col2:
+    with c2:
 
         st.bar_chart(
             distribution.set_index(
@@ -815,42 +811,28 @@ if categorical_columns:
 # DOWNLOAD FILTERED CORPUS
 # ============================================================
 
-download_filtered_df = (
+filtered_download = (
     filtered_df.drop(
         columns=[
-            "_embedding_index",
             "_topic_text",
+            "_embedding_index",
         ],
         errors="ignore",
     )
 )
 
 
-csv_data = (
-    download_filtered_df
-    .to_csv(index=False)
-    .encode("utf-8")
-)
-
-
 st.download_button(
-    "Download Filtered Corpus",
-    data=csv_data,
-    file_name="filtered_topic_corpus.csv",
+    "⬇️ Download Filtered Corpus",
+    data=(
+        filtered_download
+        .to_csv(index=False)
+        .encode("utf-8-sig")
+    ),
+    file_name=(
+        "filtered_topic_corpus.csv"
+    ),
     mime="text/csv",
-)
-
-
-# ============================================================
-# SAVE SESSION DATA
-# ============================================================
-
-st.session_state.filtered_df = (
-    filtered_df
-)
-
-st.session_state.text_column = (
-    text_column
 )
 
 
@@ -865,24 +847,18 @@ st.header(
 )
 
 
-# ============================================================
-# ANALYSIS MODE
-# ============================================================
-
-analysis_mode = st.radio(
-    "Analysis Mode",
-    [
-        "Current Filter",
-        "Overall Dataset",
-        "Compare Categories",
-    ],
-    horizontal=True,
+analysis_mode = (
+    st.radio(
+        "Analysis Mode",
+        [
+            "Current Filter",
+            "Overall Dataset",
+            "Compare Categories",
+        ],
+        horizontal=True,
+    )
 )
 
-
-# ============================================================
-# COMPARISON VARIABLES
-# ============================================================
 
 comparison_column_1 = None
 comparison_column_2 = None
@@ -901,120 +877,100 @@ if analysis_mode == "Compare Categories":
         "Two-Dimensional Category Comparison"
     )
 
+
     st.info(
         "A single shared BERTopic model will be created. "
         "Topics will then be compared across two categories."
     )
 
 
-    available_comparison_columns = (
-        categorical_columns.copy()
-    )
-
-
     if len(
-        available_comparison_columns
-    ) < 2:
+        categorical_columns
+    ) >= 2:
 
-        st.warning(
-            "At least two categorical columns "
-            "are required."
-        )
-
-
-    else:
-
-        col1, col2 = (
+        c1, c2 = (
             st.columns(2)
         )
 
 
-        # ====================================================
-        # DIMENSION 1
-        # ====================================================
+        # ----------------------------------------------------
+        # First dimension
+        # ----------------------------------------------------
 
-        with col1:
+        default_1 = 0
 
-            default_1 = 0
 
-            for i, column in enumerate(
-                available_comparison_columns
-            ):
+        for i, column in enumerate(
+            categorical_columns
+        ):
 
-                if (
-                    "relevance"
-                    in column.lower()
-                ):
+            if "relevance" in column.lower():
 
-                    default_1 = i
-                    break
+                default_1 = i
 
+                break
+
+
+        with c1:
 
             comparison_column_1 = (
                 st.selectbox(
                     "Comparison Dimension 1",
-                    options=(
-                        available_comparison_columns
-                    ),
+                    categorical_columns,
                     index=default_1,
                     key="comparison_column_1",
                 )
             )
 
 
-        # ====================================================
-        # DIMENSION 2
-        # ====================================================
+        # ----------------------------------------------------
+        # Second dimension
+        # ----------------------------------------------------
 
         second_options = [
-            c
-            for c in available_comparison_columns
-            if c != comparison_column_1
+
+            column
+
+            for column
+            in categorical_columns
+
+            if column
+            != comparison_column_1
         ]
 
 
-        with col2:
+        default_2 = 0
 
-            default_2 = 0
 
-            for i, column in enumerate(
-                second_options
-            ):
+        for i, column in enumerate(
+            second_options
+        ):
 
-                if (
-                    "sentiment"
-                    in column.lower()
-                ):
+            if "sentiment" in column.lower():
 
-                    default_2 = i
-                    break
+                default_2 = i
 
+                break
+
+
+        with c2:
 
             comparison_column_2 = (
                 st.selectbox(
                     "Comparison Dimension 2",
-                    options=second_options,
+                    second_options,
                     index=default_2,
                     key="comparison_column_2",
                 )
             )
 
 
-        # ====================================================
-        # VALUES
-        # ====================================================
-
-        st.markdown(
-            "#### Categories to Include"
-        )
-
-
-        col1, col2 = (
+        c1, c2 = (
             st.columns(2)
         )
 
 
-        with col1:
+        with c1:
 
             values_1 = (
                 get_filter_values(
@@ -1027,14 +983,14 @@ if analysis_mode == "Compare Categories":
             comparison_values_1 = (
                 st.multiselect(
                     comparison_column_1,
-                    options=values_1,
+                    values_1,
                     default=values_1,
                     key="comparison_values_1",
                 )
             )
 
 
-        with col2:
+        with c2:
 
             values_2 = (
                 get_filter_values(
@@ -1047,16 +1003,12 @@ if analysis_mode == "Compare Categories":
             comparison_values_2 = (
                 st.multiselect(
                     comparison_column_2,
-                    options=values_2,
+                    values_2,
                     default=values_2,
                     key="comparison_values_2",
                 )
             )
 
-
-        # ====================================================
-        # COMBINATION PREVIEW
-        # ====================================================
 
         comparison_preview = (
             working_df[
@@ -1072,7 +1024,6 @@ if analysis_mode == "Compare Categories":
                     comparison_values_2
                 )
             ]
-            .copy()
         )
 
 
@@ -1092,15 +1043,17 @@ if analysis_mode == "Compare Categories":
         )
 
 
-        st.markdown(
-            "#### Combination Preview"
-        )
-
-
         st.dataframe(
             combination_table,
             width="stretch",
             hide_index=True,
+        )
+
+
+    else:
+
+        st.warning(
+            "At least two categorical columns are required."
         )
 
 
@@ -1109,16 +1062,15 @@ if analysis_mode == "Compare Categories":
 # ============================================================
 
 with st.expander(
-    "BERTopic Settings",
-    expanded=False,
+    "BERTopic Settings"
 ):
 
-    col1, col2, col3 = (
+    c1, c2, c3 = (
         st.columns(3)
     )
 
 
-    with col1:
+    with c1:
 
         embedding_model_name = (
             st.selectbox(
@@ -1136,7 +1088,7 @@ with st.expander(
         )
 
 
-    with col2:
+    with c2:
 
         min_topic_size = (
             st.number_input(
@@ -1149,7 +1101,7 @@ with st.expander(
         )
 
 
-    with col3:
+    with c3:
 
         top_n_words = (
             st.number_input(
@@ -1162,12 +1114,12 @@ with st.expander(
         )
 
 
-    col1, col2 = (
+    c1, c2 = (
         st.columns(2)
     )
 
 
-    with col1:
+    with c1:
 
         ngram_min = (
             st.selectbox(
@@ -1178,7 +1130,7 @@ with st.expander(
         )
 
 
-    with col2:
+    with c2:
 
         ngram_max = (
             st.selectbox(
@@ -1190,7 +1142,7 @@ with st.expander(
 
 
 # ============================================================
-# SELECT MODELLING CORPUS
+# SELECT MODELLING DATA
 # ============================================================
 
 if analysis_mode == "Current Filter":
@@ -1200,22 +1152,10 @@ if analysis_mode == "Current Filter":
     )
 
 
-    st.info(
-        f"BERTopic will analyse "
-        f"{len(modelling_df):,} filtered documents."
-    )
-
-
 elif analysis_mode == "Overall Dataset":
 
     modelling_df = (
         working_df.copy()
-    )
-
-
-    st.info(
-        f"BERTopic will analyse "
-        f"{len(modelling_df):,} documents."
     )
 
 
@@ -1254,42 +1194,35 @@ else:
         )
 
 
-    st.info(
-        f"Shared BERTopic model will analyse "
-        f"{len(modelling_df):,} documents."
-    )
+st.info(
+    f"BERTopic will analyse "
+    f"{len(modelling_df):,} documents."
+)
 
-
-# ============================================================
-# LARGE DATA WARNING
-# ============================================================
 
 if len(modelling_df) > 20000:
 
     st.warning(
-        f"You selected {len(modelling_df):,} documents. "
-        "BERTopic may require considerable processing time "
-        "on Streamlit Community Cloud. Embeddings will be "
-        "cached after they are generated."
+        "Large corpus selected. The first run may take "
+        "considerable time because embeddings must be generated. "
+        "Subsequent runs can reuse cached embeddings."
     )
 
 
 # ============================================================
-# RUN TOPIC MODEL
+# RUN MODEL
 # ============================================================
 
-run_model = st.button(
-    "🚀 Run Topic Modelling",
-    type="primary",
-    width="stretch",
+run_model = (
+    st.button(
+        "🚀 Run Topic Modelling",
+        type="primary",
+        width="stretch",
+    )
 )
 
 
 if run_model:
-
-    # --------------------------------------------------------
-    # VALIDATION
-    # --------------------------------------------------------
 
     if len(modelling_df) < 20:
 
@@ -1303,26 +1236,11 @@ if run_model:
     if ngram_min > ngram_max:
 
         st.error(
-            "Minimum N-gram cannot be greater "
-            "than Maximum N-gram."
+            "Minimum N-gram cannot exceed Maximum N-gram."
         )
 
         st.stop()
 
-
-    if min_topic_size > len(modelling_df):
-
-        st.error(
-            "Minimum Topic Size cannot be larger "
-            "than the number of documents."
-        )
-
-        st.stop()
-
-
-    # --------------------------------------------------------
-    # RUN
-    # --------------------------------------------------------
 
     with st.status(
         "Running BERTopic...",
@@ -1332,27 +1250,7 @@ if run_model:
         try:
 
             # =================================================
-            # STEP 1: INFORMATION
-            # =================================================
-
-            st.write(
-                f"Full valid corpus: "
-                f"{len(working_df):,} documents"
-            )
-
-            st.write(
-                f"Documents selected for this analysis: "
-                f"{len(modelling_df):,}"
-            )
-
-            st.write(
-                f"Embedding model: "
-                f"{embedding_model_name}"
-            )
-
-
-            # =================================================
-            # STEP 2: PREPARE FULL CORPUS
+            # FULL CORPUS DOCUMENTS
             # =================================================
 
             all_documents = (
@@ -1366,13 +1264,31 @@ if run_model:
             )
 
 
+            st.write(
+                f"Full valid corpus: "
+                f"{len(all_documents):,} documents"
+            )
+
+
+            st.write(
+                f"Current analysis: "
+                f"{len(modelling_df):,} documents"
+            )
+
+
+            st.write(
+                f"Embedding model: "
+                f"{embedding_model_name}"
+            )
+
+
             # =================================================
-            # STEP 3: EMBEDDINGS
+            # EMBEDDINGS
             # =================================================
 
             st.write(
                 "Loading cached embeddings or generating "
-                "them for the first time..."
+                "embeddings for the first run..."
             )
 
 
@@ -1385,14 +1301,13 @@ if run_model:
 
 
             st.write(
-                f"✓ Embeddings ready: "
-                f"{full_embeddings.shape[0]:,} × "
-                f"{full_embeddings.shape[1]:,}"
+                f"✓ Full embedding matrix ready: "
+                f"{full_embeddings.shape}"
             )
 
 
             # =================================================
-            # STEP 4: GET EMBEDDINGS FOR CURRENT SUBSET
+            # SELECT REQUIRED EMBEDDINGS
             # =================================================
 
             embedding_indices = (
@@ -1412,65 +1327,55 @@ if run_model:
 
 
             st.write(
-                f"✓ Selected embeddings for "
-                f"{len(selected_embeddings):,} documents."
+                f"✓ Selected "
+                f"{len(selected_embeddings):,} embeddings"
             )
 
 
             # =================================================
-            # STEP 5: BERTopic
+            # BERTopic
             # =================================================
 
             st.write(
-                "Running UMAP dimensionality reduction..."
-            )
-
-            st.write(
-                "Running HDBSCAN clustering..."
-            )
-
-            st.write(
-                "Generating topic representations..."
+                "Running UMAP and HDBSCAN..."
             )
 
 
-            result = run_topic_model(
-                modelling_df,
-                text_column="_topic_text",
-                embedding_model_name=(
-                    embedding_model_name
-                ),
-                min_topic_size=(
-                    min_topic_size
-                ),
-                nr_topics="auto",
-                ngram_min=ngram_min,
-                ngram_max=ngram_max,
-                top_n_words=top_n_words,
-                embeddings=selected_embeddings,
+            result = (
+                run_topic_model(
+                    modelling_df,
+                    text_column="_topic_text",
+                    embedding_model_name=(
+                        embedding_model_name
+                    ),
+                    min_topic_size=(
+                        min_topic_size
+                    ),
+                    nr_topics="auto",
+                    ngram_min=ngram_min,
+                    ngram_max=ngram_max,
+                    top_n_words=top_n_words,
+                    embeddings=(
+                        selected_embeddings
+                    ),
+                )
             )
 
 
-            # =================================================
-            # SAVE RESULTS
-            # =================================================
+            st.session_state[
+                "topic_result"
+            ] = result
 
-            st.session_state.topic_result = (
-                result
-            )
 
-            st.session_state.topic_analysis_mode = (
-                analysis_mode
-            )
+            st.session_state[
+                "topic_analysis_mode"
+            ] = analysis_mode
+
 
             st.session_state[
                 "topic_top_n_words"
             ] = top_n_words
 
-
-            # =================================================
-            # SAVE COMPARISON SETTINGS
-            # =================================================
 
             if (
                 analysis_mode
@@ -1486,10 +1391,6 @@ if run_model:
                     "comparison_column_2_used"
                 ] = comparison_column_2
 
-
-            # =================================================
-            # COMPLETE
-            # =================================================
 
             status.update(
                 label=(
@@ -1518,24 +1419,26 @@ if run_model:
 if "topic_result" in st.session_state:
 
     result = (
-        st.session_state.topic_result
+        st.session_state[
+            "topic_result"
+        ]
     )
 
 
-    topic_model = result[
-        "model"
-    ]
+    topic_model = (
+        result["model"]
+    )
 
-    result_df = result[
-        "data"
-    ]
+    result_df = (
+        result["data"]
+    )
 
-    topic_info = result[
-        "topic_info"
-    ]
+    topic_info = (
+        result["topic_info"]
+    )
 
 
-    stored_top_n_words = (
+    top_words = (
         st.session_state.get(
             "topic_top_n_words",
             20,
@@ -1556,7 +1459,9 @@ if "topic_result" in st.session_state:
 
     valid_topics = (
         topic_info[
-            topic_info["Topic"] != -1
+            topic_info[
+                "Topic"
+            ] != -1
         ]
     )
 
@@ -1575,27 +1480,26 @@ if "topic_result" in st.session_state:
     )
 
 
-    if len(result_df) > 0:
+    outlier_percentage = (
 
-        outlier_percentage = (
-            outlier_count
-            /
-            len(result_df)
-            *
-            100
-        )
+        outlier_count
+        /
+        len(result_df)
+        *
+        100
 
-    else:
+        if len(result_df)
 
-        outlier_percentage = 0
+        else 0
+    )
 
 
-    col1, col2, col3 = (
+    c1, c2, c3 = (
         st.columns(3)
     )
 
 
-    with col1:
+    with c1:
 
         st.metric(
             "Topics Found",
@@ -1603,7 +1507,7 @@ if "topic_result" in st.session_state:
         )
 
 
-    with col2:
+    with c2:
 
         st.metric(
             "Outlier Documents",
@@ -1611,7 +1515,7 @@ if "topic_result" in st.session_state:
         )
 
 
-    with col3:
+    with c3:
 
         st.metric(
             "Outlier Rate",
@@ -1620,7 +1524,7 @@ if "topic_result" in st.session_state:
 
 
     # ========================================================
-    # TOPIC TABLE
+    # TOPIC OVERVIEW
     # ========================================================
 
     st.subheader(
@@ -1645,11 +1549,7 @@ if "topic_result" in st.session_state:
 
 
     frequency_data = (
-        topic_info[
-            topic_info[
-                "Topic"
-            ] != -1
-        ][
+        valid_topics[
             [
                 "Topic",
                 "Count",
@@ -1678,11 +1578,7 @@ if "topic_result" in st.session_state:
 
 
     available_topics = (
-        topic_info[
-            topic_info[
-                "Topic"
-            ] != -1
-        ][
+        valid_topics[
             "Topic"
         ]
         .tolist()
@@ -1694,28 +1590,58 @@ if "topic_result" in st.session_state:
         selected_topic = (
             st.selectbox(
                 "Select Topic",
-                options=available_topics,
+                available_topics,
             )
         )
 
+
+        # ----------------------------------------------------
+        # Auto label
+        # ----------------------------------------------------
+
+        selected_info = (
+            topic_info[
+                topic_info[
+                    "Topic"
+                ]
+                ==
+                selected_topic
+            ]
+        )
+
+
+        if not selected_info.empty:
+
+            auto_label = (
+                selected_info[
+                    "Auto_Label"
+                ]
+                .iloc[0]
+            )
+
+
+            st.markdown(
+                f"### Topic {selected_topic}"
+            )
+
+            st.markdown(
+                f"**Automatic Label:** "
+                f"{auto_label}"
+            )
+
+
+        # ----------------------------------------------------
+        # Keywords
+        # ----------------------------------------------------
 
         keywords = (
             get_topic_keywords(
                 topic_model,
                 selected_topic,
-                top_n=stored_top_n_words,
+                top_n=top_words,
             )
         )
 
-
-        st.markdown(
-            f"### Topic {selected_topic}"
-        )
-
-
-        # ====================================================
-        # KEYWORDS
-        # ====================================================
 
         keyword_df = (
             pd.DataFrame(
@@ -1728,14 +1654,14 @@ if "topic_result" in st.session_state:
         )
 
 
-        col1, col2 = (
+        c1, c2 = (
             st.columns(
                 [1, 2]
             )
         )
 
 
-        with col1:
+        with c1:
 
             st.dataframe(
                 keyword_df,
@@ -1744,20 +1670,21 @@ if "topic_result" in st.session_state:
             )
 
 
-        with col2:
+        with c2:
 
             if not keyword_df.empty:
 
                 st.bar_chart(
-                    keyword_df.set_index(
+                    keyword_df
+                    .set_index(
                         "Keyword"
                     )
                 )
 
 
-        # ====================================================
-        # REPRESENTATIVE DOCUMENTS
-        # ====================================================
+        # ----------------------------------------------------
+        # Representative docs
+        # ----------------------------------------------------
 
         st.markdown(
             "### Representative Documents"
@@ -1776,7 +1703,7 @@ if "topic_result" in st.session_state:
 
             for i, document in enumerate(
                 representative_docs,
-                start=1,
+                1,
             ):
 
                 with st.expander(
@@ -1787,15 +1714,9 @@ if "topic_result" in st.session_state:
                         document
                     )
 
-        else:
-
-            st.info(
-                "No representative documents available."
-            )
-
 
     # ========================================================
-    # TOPIC VISUALIZATIONS
+    # VISUALIZATIONS
     # ========================================================
 
     st.divider()
@@ -1814,72 +1735,41 @@ if "topic_result" in st.session_state:
                 "Topic Hierarchy",
                 "Topic Similarity Heatmap",
             ],
-            key="topic_visualization_type",
         )
     )
 
 
-    # ========================================================
-    # 1. INTERTOPIC DISTANCE MAP
-    # ========================================================
+    try:
 
-    if (
-        visualization_type
-        ==
-        "Intertopic Distance Map (Bubble)"
-    ):
+        if (
+            visualization_type
+            ==
+            "Intertopic Distance Map (Bubble)"
+        ):
 
-        st.markdown(
-            "### Intertopic Distance Map"
-        )
+            if number_topics > 0:
 
-        st.caption(
-            "Each bubble represents a topic. "
-            "Bubble size reflects topic frequency, while "
-            "distance between bubbles indicates topic similarity."
-        )
-
-        try:
-
-            max_topics_available = (
-                len(
-                    topic_info[
-                        topic_info[
-                            "Topic"
-                        ] != -1
-                    ]
-                )
-            )
-
-
-            if max_topics_available > 0:
-
-                number_topics_visual = (
+                max_display = (
                     st.slider(
                         "Number of topics to display",
-                        min_value=1,
-                        max_value=max_topics_available,
-                        value=min(
+                        1,
+                        number_topics,
+                        min(
                             30,
-                            max_topics_available,
+                            number_topics,
                         ),
-                        step=1,
                     )
                 )
 
 
                 selected_visual_topics = (
-                    topic_info[
-                        topic_info[
-                            "Topic"
-                        ] != -1
-                    ]
+                    valid_topics
                     .sort_values(
                         "Count",
                         ascending=False,
                     )
                     .head(
-                        number_topics_visual
+                        max_display
                     )[
                         "Topic"
                     ]
@@ -1902,53 +1792,23 @@ if "topic_result" in st.session_state:
                     width="stretch",
                 )
 
-            else:
 
-                st.info(
-                    "No non-outlier topics are available "
-                    "for visualization."
-                )
-
-
-        except Exception as e:
-
-            st.warning(
-                "Unable to generate the "
-                "Intertopic Distance Map."
-            )
-
-            st.exception(e)
-
-
-    # ========================================================
-    # 2. TOPIC WORD SCORES
-    # ========================================================
-
-    elif (
-        visualization_type
-        ==
-        "Topic Word Scores"
-    ):
-
-        st.markdown(
-            "### Topic Keyword Scores"
-        )
-
-        try:
+        elif (
+            visualization_type
+            ==
+            "Topic Word Scores"
+        ):
 
             fig = (
                 topic_model
                 .visualize_barchart(
                     top_n_topics=min(
                         20,
-                        max(
-                            1,
-                            number_topics,
-                        ),
+                        number_topics,
                     ),
                     n_words=min(
                         20,
-                        stored_top_n_words,
+                        top_words,
                     ),
                 )
             )
@@ -1960,36 +1820,11 @@ if "topic_result" in st.session_state:
             )
 
 
-        except Exception as e:
-
-            st.warning(
-                "Unable to generate topic "
-                "word visualization."
-            )
-
-            st.exception(e)
-
-
-    # ========================================================
-    # 3. TOPIC HIERARCHY
-    # ========================================================
-
-    elif (
-        visualization_type
-        ==
-        "Topic Hierarchy"
-    ):
-
-        st.markdown(
-            "### Topic Hierarchy"
-        )
-
-        st.caption(
-            "This visualization shows how similar topics "
-            "can be grouped into broader themes."
-        )
-
-        try:
+        elif (
+            visualization_type
+            ==
+            "Topic Hierarchy"
+        ):
 
             fig = (
                 topic_model
@@ -2003,30 +1838,11 @@ if "topic_result" in st.session_state:
             )
 
 
-        except Exception as e:
-
-            st.warning(
-                "Unable to generate topic hierarchy."
-            )
-
-            st.exception(e)
-
-
-    # ========================================================
-    # 4. TOPIC SIMILARITY HEATMAP
-    # ========================================================
-
-    elif (
-        visualization_type
-        ==
-        "Topic Similarity Heatmap"
-    ):
-
-        st.markdown(
-            "### Topic Similarity Heatmap"
-        )
-
-        try:
+        elif (
+            visualization_type
+            ==
+            "Topic Similarity Heatmap"
+        ):
 
             fig = (
                 topic_model
@@ -2040,56 +1856,203 @@ if "topic_result" in st.session_state:
             )
 
 
-        except Exception as e:
+    except Exception as e:
 
-            st.warning(
-                "Unable to generate topic "
-                "similarity heatmap."
-            )
+        st.warning(
+            "Unable to generate this visualization."
+        )
 
-            st.exception(e)
+        st.exception(e)
 
 
     # ========================================================
-    # DOWNLOAD TOPIC RESULTS
+    # 8. DOWNLOAD RESULTS
     # ========================================================
 
     st.divider()
 
-    download_result_df = (
-        result_df.drop(
-            columns=[
-                "_embedding_index",
-                "_topic_text",
-            ],
-            errors="ignore",
-        )
+    st.header(
+        "8. Download Results"
     )
 
 
-    topic_csv = (
-        download_result_df
+    # ========================================================
+    # DOCUMENT LEVEL
+    # ========================================================
+
+    st.subheader(
+        "Document-Level Results"
+    )
+
+
+    st.caption(
+        "Every document is assigned its BERTopic topic ID, "
+        "automatic topic label and topic keywords."
+    )
+
+
+    document_output = (
+        result_df.drop(
+            columns=[
+                "_topic_text",
+                "_embedding_index",
+            ],
+            errors="ignore",
+        )
+        .copy()
+    )
+
+
+    # Put topic columns together at end
+
+    topic_columns = [
+        "topic_id",
+        "topic_auto_label",
+        "topic_keywords",
+    ]
+
+
+    topic_columns = [
+
+        column
+
+        for column
+        in topic_columns
+
+        if column
+        in document_output.columns
+    ]
+
+
+    other_columns = [
+
+        column
+
+        for column
+        in document_output.columns
+
+        if column
+        not in topic_columns
+    ]
+
+
+    document_output = (
+        document_output[
+            other_columns
+            +
+            topic_columns
+        ]
+    )
+
+
+    with st.expander(
+        "Preview Document-Level Results"
+    ):
+
+        st.dataframe(
+            document_output.head(100),
+            width="stretch",
+        )
+
+
+    document_csv = (
+        document_output
         .to_csv(
             index=False
         )
         .encode(
-            "utf-8"
+            "utf-8-sig"
         )
     )
 
 
     st.download_button(
-        "Download Dataset with Topic IDs",
-        data=topic_csv,
+        "⬇️ Download Document-Level Topic Results",
+        data=document_csv,
         file_name=(
-            "topic_modelling_results.csv"
+            "topic_modelling_document_results.csv"
         ),
         mime="text/csv",
+        width="stretch",
+    )
+
+
+    # ========================================================
+    # TOPIC SUMMARY
+    # ========================================================
+
+    st.subheader(
+        "Topic-Level Summary"
+    )
+
+
+    st.caption(
+        "One row per topic with frequency, automatic label "
+        "and complete topic keyword representation."
+    )
+
+
+    preferred_columns = [
+        "Topic",
+        "Count",
+        "Auto_Label",
+        "Topic_Keywords",
+        "Name",
+        "Representation",
+        "Representative_Docs",
+        "Topic_Status",
+    ]
+
+
+    available_summary_columns = [
+
+        column
+
+        for column
+        in preferred_columns
+
+        if column
+        in topic_info.columns
+    ]
+
+
+    topic_summary = (
+        topic_info[
+            available_summary_columns
+        ]
+        .copy()
+    )
+
+
+    st.dataframe(
+        topic_summary,
+        width="stretch",
+        hide_index=True,
+    )
+
+
+    topic_summary_csv = (
+        topic_summary
+        .to_csv(
+            index=False
+        )
+        .encode(
+            "utf-8-sig"
+        )
+    )
+
+
+    st.download_button(
+        "⬇️ Download Topic Summary",
+        data=topic_summary_csv,
+        file_name="topic_summary.csv",
+        mime="text/csv",
+        width="stretch",
     )
 
 
 # ============================================================
-# 8. TWO-DIMENSIONAL COMPARISON
+# 9. TWO-DIMENSIONAL CATEGORY ANALYSIS
 # ============================================================
 
 if (
@@ -2102,13 +2065,6 @@ if (
     ==
     "Compare Categories"
 ):
-
-    st.divider()
-
-    st.header(
-        "8. Topic × Category Analysis"
-    )
-
 
     comparison_df = (
         st.session_state[
@@ -2136,19 +2092,22 @@ if (
 
     if (
         comparison_col_1
-        and
-        comparison_col_2
+        and comparison_col_2
     ):
 
-        st.write(
-            f"Comparing **{comparison_col_1}** "
-            f"× **{comparison_col_2}**"
+        st.divider()
+
+        st.header(
+            "9. Topic × Category Analysis"
         )
 
 
-        # ====================================================
-        # OUTLIERS
-        # ====================================================
+        st.write(
+            f"Comparing "
+            f"**{comparison_col_1}** × "
+            f"**{comparison_col_2}**"
+        )
+
 
         exclude_outliers = (
             st.checkbox(
@@ -2175,7 +2134,7 @@ if (
 
 
         # ====================================================
-        # GROUP TOPICS
+        # GROUP
         # ====================================================
 
         topic_category = (
@@ -2196,7 +2155,48 @@ if (
 
 
         # ====================================================
-        # CATEGORY TOTALS
+        # ADD TOPIC LABEL
+        # ====================================================
+
+        label_map = (
+
+            comparison_df[
+                [
+                    "topic_id",
+                    "topic_auto_label",
+                ]
+            ]
+
+            .drop_duplicates(
+                subset=[
+                    "topic_id"
+                ]
+            )
+
+            .set_index(
+                "topic_id"
+            )[
+                "topic_auto_label"
+            ]
+
+            .to_dict()
+        )
+
+
+        topic_category[
+            "Topic_Label"
+        ] = (
+            topic_category[
+                "topic_id"
+            ]
+            .map(
+                label_map
+            )
+        )
+
+
+        # ====================================================
+        # PERCENTAGE
         # ====================================================
 
         category_totals = (
@@ -2229,7 +2229,7 @@ if (
 
 
         # ====================================================
-        # COMPLETE TABLE
+        # TABLE
         # ====================================================
 
         st.subheader(
@@ -2251,7 +2251,8 @@ if (
         comparison_topics = sorted(
             analysis_df[
                 "topic_id"
-            ].unique()
+            ]
+            .unique()
         )
 
 
@@ -2260,9 +2261,7 @@ if (
             selected_comparison_topic = (
                 st.selectbox(
                     "Select Topic to Compare",
-                    options=(
-                        comparison_topics
-                    ),
+                    comparison_topics,
                     key=(
                         "comparison_topic_selector"
                     ),
@@ -2282,17 +2281,10 @@ if (
             )
 
 
-            # ================================================
-            # COUNT MATRIX
-            # ================================================
-
-            count_matrix = (
-                selected_topic_df
-                .pivot_table(
-                    index=comparison_col_1,
-                    columns=comparison_col_2,
-                    values="Documents",
-                    fill_value=0,
+            selected_label = (
+                label_map.get(
+                    selected_comparison_topic,
+                    "",
                 )
             )
 
@@ -2300,6 +2292,30 @@ if (
             st.markdown(
                 f"### Topic "
                 f"{selected_comparison_topic}"
+            )
+
+
+            st.markdown(
+                f"**{selected_label}**"
+            )
+
+
+            # =================================================
+            # COUNT MATRIX
+            # =================================================
+
+            count_matrix = (
+                selected_topic_df
+                .pivot_table(
+                    index=(
+                        comparison_col_1
+                    ),
+                    columns=(
+                        comparison_col_2
+                    ),
+                    values="Documents",
+                    fill_value=0,
+                )
             )
 
 
@@ -2314,25 +2330,27 @@ if (
             )
 
 
-            # ================================================
-            # COUNT HEATMAP
-            # ================================================
+            fig_count = (
+                px.imshow(
+                    count_matrix,
+                    text_auto=True,
+                    aspect="auto",
+                    labels={
+                        "x":
+                            comparison_col_2,
 
-            fig_count = px.imshow(
-                count_matrix,
-                text_auto=True,
-                aspect="auto",
-                labels={
-                    "x": comparison_col_2,
-                    "y": comparison_col_1,
-                    "color": "Documents",
-                },
-                title=(
-                    f"Topic "
-                    f"{selected_comparison_topic}: "
-                    f"{comparison_col_1} × "
-                    f"{comparison_col_2}"
-                ),
+                        "y":
+                            comparison_col_1,
+
+                        "color":
+                            "Documents",
+                    },
+                    title=(
+                        f"Topic "
+                        f"{selected_comparison_topic}: "
+                        f"{selected_label}"
+                    ),
+                )
             )
 
 
@@ -2342,15 +2360,19 @@ if (
             )
 
 
-            # ================================================
+            # =================================================
             # PERCENTAGE MATRIX
-            # ================================================
+            # =================================================
 
             percentage_matrix = (
                 selected_topic_df
                 .pivot_table(
-                    index=comparison_col_1,
-                    columns=comparison_col_2,
+                    index=(
+                        comparison_col_1
+                    ),
+                    columns=(
+                        comparison_col_2
+                    ),
                     values="Percentage",
                     fill_value=0,
                 )
@@ -2368,19 +2390,20 @@ if (
             )
 
 
-            # ================================================
-            # PERCENTAGE HEATMAP
-            # ================================================
-
             fig_percentage = (
                 px.imshow(
                     percentage_matrix,
                     text_auto=".1f",
                     aspect="auto",
                     labels={
-                        "x": comparison_col_2,
-                        "y": comparison_col_1,
-                        "color": "%",
+                        "x":
+                            comparison_col_2,
+
+                        "y":
+                            comparison_col_1,
+
+                        "color":
+                            "%",
                     },
                     title=(
                         "Topic prevalence within "
@@ -2396,9 +2419,9 @@ if (
             )
 
 
-            # ================================================
+            # =================================================
             # BAR CHART
-            # ================================================
+            # =================================================
 
             selected_topic_df[
                 "Category"
@@ -2415,16 +2438,18 @@ if (
             )
 
 
-            bar_fig = px.bar(
-                selected_topic_df,
-                x="Category",
-                y="Documents",
-                text="Documents",
-                title=(
-                    f"Topic "
-                    f"{selected_comparison_topic} "
-                    "Distribution"
-                ),
+            bar_fig = (
+                px.bar(
+                    selected_topic_df,
+                    x="Category",
+                    y="Documents",
+                    text="Documents",
+                    title=(
+                        f"Topic "
+                        f"{selected_comparison_topic}: "
+                        f"{selected_label}"
+                    ),
+                )
             )
 
 
@@ -2444,24 +2469,17 @@ if (
                 index=False
             )
             .encode(
-                "utf-8"
+                "utf-8-sig"
             )
         )
 
 
         st.download_button(
-            "Download Category Comparison",
+            "⬇️ Download Category Comparison",
             data=comparison_csv,
             file_name=(
                 "topic_category_comparison.csv"
             ),
             mime="text/csv",
-        )
-
-
-    else:
-
-        st.warning(
-            "Comparison columns are unavailable. "
-            "Run Compare Categories again."
+            width="stretch",
         )
