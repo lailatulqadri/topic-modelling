@@ -1,21 +1,13 @@
-# ============================================================
-# TOPIC MODEL MODULE
-# Dynamic Topic Modelling System
-# Optimised for Streamlit / BERTopic
-# ============================================================
+import numpy as np
 
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
-
 from sklearn.feature_extraction.text import (
     CountVectorizer,
     ENGLISH_STOP_WORDS,
 )
-
 from umap import UMAP
 from hdbscan import HDBSCAN
-
-import numpy as np
 
 
 # ============================================================
@@ -24,10 +16,7 @@ import numpy as np
 
 CUSTOM_STOPWORDS = [
 
-    # --------------------------------------------------------
-    # Reddit / Web
-    # --------------------------------------------------------
-
+    # Reddit / web
     "reddit",
     "post",
     "posts",
@@ -35,66 +24,47 @@ CUSTOM_STOPWORDS = [
     "comments",
     "thread",
     "subreddit",
-
     "http",
     "https",
     "www",
     "com",
     "amp",
-
     "deleted",
     "removed",
 
-    # --------------------------------------------------------
-    # General conversational words
-    # --------------------------------------------------------
-
+    # Conversational
     "like",
     "just",
     "really",
     "know",
     "think",
-
     "said",
     "say",
-
     "people",
     "person",
-
     "thing",
     "things",
-
     "got",
     "get",
     "getting",
-
     "going",
     "went",
-
     "want",
     "wanted",
-
     "feel",
     "felt",
-
     "actually",
     "maybe",
     "probably",
-
     "yeah",
     "yes",
     "no",
-
     "hi",
     "hello",
-
     "thanks",
     "thank",
 
-    # --------------------------------------------------------
     # Contraction fragments
-    # --------------------------------------------------------
-
     "ve",
     "ll",
     "don",
@@ -116,19 +86,13 @@ CUSTOM_STOPWORDS = [
 def load_embedding_model(
     embedding_model_name="all-MiniLM-L6-v2",
 ):
-
     """
-    Load SentenceTransformer model.
-
-    Streamlit should cache this function using st.cache_resource
-    from app.py.
+    Load a SentenceTransformer embedding model.
     """
 
-    model = SentenceTransformer(
+    return SentenceTransformer(
         embedding_model_name
     )
-
-    return model
 
 
 # ============================================================
@@ -140,48 +104,34 @@ def create_embeddings(
     embedding_model,
     batch_size=64,
 ):
-
     """
-    Generate document embeddings separately from BERTopic.
-
-    This prevents BERTopic from automatically generating
-    embeddings every time fit_transform() is called.
-
-    Parameters
-    ----------
-    documents : list
-        List of text documents.
-
-    embedding_model : SentenceTransformer
-        Loaded SentenceTransformer model.
-
-    batch_size : int
-        Number of documents processed per batch.
-
-    Returns
-    -------
-    numpy.ndarray
-        Document embeddings.
+    Generate embeddings for documents.
     """
+
+    if documents is None or len(documents) == 0:
+
+        raise ValueError(
+            "No documents were provided for embedding."
+        )
+
 
     embeddings = embedding_model.encode(
-
-        documents,
-
+        list(documents),
         batch_size=batch_size,
-
         show_progress_bar=True,
-
         normalize_embeddings=True,
-
         convert_to_numpy=True,
     )
 
-    return embeddings
+
+    return np.asarray(
+        embeddings,
+        dtype=np.float32,
+    )
 
 
 # ============================================================
-# CREATE TOPIC MODEL
+# CREATE BERTopic MODEL
 # ============================================================
 
 def create_topic_model(
@@ -191,19 +141,15 @@ def create_topic_model(
     ngram_max=2,
     top_n_words=20,
 ):
-
     """
-    Create and configure BERTopic.
+    Create BERTopic model.
 
-    IMPORTANT:
-    Embeddings are generated separately.
-    BERTopic therefore does NOT need to run
-    SentenceTransformer internally.
+    Embeddings are supplied separately to fit_transform().
     """
 
-    # ========================================================
-    # STOPWORDS
-    # ========================================================
+    # --------------------------------------------------------
+    # Stopwords
+    # --------------------------------------------------------
 
     stop_words = set(
         ENGLISH_STOP_WORDS
@@ -218,85 +164,59 @@ def create_topic_model(
     )
 
 
-    # ========================================================
-    # VECTORIZER
-    # ========================================================
+    # --------------------------------------------------------
+    # Vectorizer
+    # --------------------------------------------------------
 
     vectorizer_model = CountVectorizer(
-
         stop_words=stop_words,
-
         ngram_range=(
             ngram_min,
-            ngram_max
+            ngram_max,
         ),
-
         min_df=2,
-
         lowercase=True,
     )
 
 
-    # ========================================================
+    # --------------------------------------------------------
     # UMAP
-    # ========================================================
+    # --------------------------------------------------------
 
     umap_model = UMAP(
-
         n_neighbors=15,
-
         n_components=5,
-
         min_dist=0.0,
-
         metric="cosine",
-
         random_state=42,
-
         low_memory=True,
     )
 
 
-    # ========================================================
+    # --------------------------------------------------------
     # HDBSCAN
-    # ========================================================
+    # --------------------------------------------------------
 
     hdbscan_model = HDBSCAN(
-
         min_cluster_size=min_topic_size,
-
         metric="euclidean",
-
         cluster_selection_method="eom",
-
         prediction_data=True,
     )
 
 
-    # ========================================================
+    # --------------------------------------------------------
     # BERTopic
-    # ========================================================
+    # --------------------------------------------------------
 
     topic_model = BERTopic(
-
-        # IMPORTANT:
-        # No SentenceTransformer here.
-        # Embeddings are passed directly to fit_transform().
-
         embedding_model=None,
-
         vectorizer_model=vectorizer_model,
-
         umap_model=umap_model,
-
         hdbscan_model=hdbscan_model,
-
         top_n_words=top_n_words,
-
         nr_topics=nr_topics,
-
         calculate_probabilities=False,
-
         verbose=True,
     )
 
@@ -321,97 +241,79 @@ def run_topic_model(
     embeddings=None,
     batch_size=64,
 ):
-
     """
-    Run BERTopic on a dataframe.
+    Run BERTopic and attach topic information to every document.
 
-    Embeddings can optionally be supplied.
+    Output document columns include:
 
-    This allows Streamlit to cache embeddings so that
-    BERTopic does not regenerate them unnecessarily.
-
-    Returns
-    -------
-    dict containing:
-
-        model
-        data
-        topic_info
-        documents
-        topics
-        probabilities
-        embeddings
+        topic_id
+        topic_auto_label
+        topic_keywords
     """
 
+    # --------------------------------------------------------
+    # Copy dataframe
+    # --------------------------------------------------------
 
-    # ========================================================
-    # COPY DATA
-    # ========================================================
+    working_df = (
+        df.copy()
+        .reset_index(drop=True)
+    )
 
-    working_df = df.copy()
 
-
-    # ========================================================
-    # PREPARE DOCUMENTS
-    # ========================================================
+    # --------------------------------------------------------
+    # Documents
+    # --------------------------------------------------------
 
     documents = (
-
         working_df[
             text_column
         ]
-
         .fillna("")
-
         .astype(str)
-
         .str.strip()
-
         .tolist()
     )
 
 
-    # ========================================================
-    # REMOVE EMPTY DOCUMENTS
-    # ========================================================
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
 
-    valid_mask = [
-        bool(doc)
-        for doc in documents
-    ]
+    if len(documents) == 0:
 
-    if not all(valid_mask):
-
-        working_df = (
-            working_df
-            .loc[valid_mask]
-            .copy()
-            .reset_index(drop=True)
+        raise ValueError(
+            "No documents are available for topic modelling."
         )
 
-        documents = [
-            doc
-            for doc in documents
-            if doc
-        ]
+
+    empty_positions = [
+        i
+        for i, document
+        in enumerate(documents)
+        if not document
+    ]
 
 
-    # ========================================================
-    # CHECK DATA
-    # ========================================================
+    if empty_positions:
+
+        raise ValueError(
+            f"{len(empty_positions)} empty documents were found. "
+            "Remove empty documents before running BERTopic."
+        )
+
 
     if len(documents) < min_topic_size:
 
         raise ValueError(
-            f"Not enough documents for topic modelling. "
-            f"Found {len(documents)} documents but "
-            f"min_topic_size={min_topic_size}."
+            f"Only {len(documents):,} documents are available, "
+            f"but min_topic_size={min_topic_size}."
         )
 
 
-    # ========================================================
-    # LOAD EMBEDDING MODEL
-    # ========================================================
+    # --------------------------------------------------------
+    # Generate embeddings only when not supplied
+    # --------------------------------------------------------
 
     if embeddings is None:
 
@@ -424,95 +326,237 @@ def run_topic_model(
             )
 
 
-        # ====================================================
-        # CREATE EMBEDDINGS
-        # ====================================================
-
-        embeddings = (
-            create_embeddings(
-
-                documents=documents,
-
-                embedding_model=embedding_model,
-
-                batch_size=batch_size,
-            )
+        embeddings = create_embeddings(
+            documents=documents,
+            embedding_model=embedding_model,
+            batch_size=batch_size,
         )
 
 
-    # ========================================================
-    # VALIDATE EMBEDDINGS
-    # ========================================================
+    # --------------------------------------------------------
+    # Validate embeddings
+    # --------------------------------------------------------
 
     embeddings = np.asarray(
-        embeddings
+        embeddings,
+        dtype=np.float32,
     )
+
+
+    if embeddings.ndim != 2:
+
+        raise ValueError(
+            "Embeddings must be a two-dimensional array."
+        )
 
 
     if len(embeddings) != len(documents):
 
         raise ValueError(
-
-            "Number of embeddings does not match "
-            "number of documents. "
-
-            f"Documents: {len(documents)}, "
-            f"Embeddings: {len(embeddings)}"
+            "Document and embedding counts do not match. "
+            f"Documents={len(documents):,}; "
+            f"Embeddings={len(embeddings):,}."
         )
 
 
-    # ========================================================
-    # CREATE BERTopic MODEL
-    # ========================================================
+    # --------------------------------------------------------
+    # Create model
+    # --------------------------------------------------------
 
     topic_model = create_topic_model(
-
         min_topic_size=min_topic_size,
-
         nr_topics=nr_topics,
-
         ngram_min=ngram_min,
-
         ngram_max=ngram_max,
-
         top_n_words=top_n_words,
     )
 
 
-    # ========================================================
-    # FIT BERTopic
-    # ========================================================
+    # --------------------------------------------------------
+    # Fit model
+    # --------------------------------------------------------
 
     topics, probabilities = (
         topic_model.fit_transform(
-
             documents,
-
             embeddings=embeddings,
         )
     )
 
 
-    # ========================================================
-    # ADD TOPIC ID
-    # ========================================================
+    # --------------------------------------------------------
+    # Topic ID for every document
+    # --------------------------------------------------------
 
     working_df[
         "topic_id"
     ] = topics
 
 
-    # ========================================================
-    # GET TOPIC INFORMATION
-    # ========================================================
+    # --------------------------------------------------------
+    # Topic information
+    # --------------------------------------------------------
 
     topic_info = (
         topic_model.get_topic_info()
+        .copy()
     )
 
 
     # ========================================================
-    # RETURN RESULTS
+    # BUILD TOPIC KEYWORD + AUTO LABEL MAPS
+    # ========================================================
+
+    topic_keyword_map = {}
+
+    topic_auto_label_map = {}
+
+
+    for topic_id in topic_info["Topic"]:
+
+        topic_id = int(topic_id)
+
+
+        # ----------------------------------------------------
+        # Outliers
+        # ----------------------------------------------------
+
+        if topic_id == -1:
+
+            topic_keyword_map[
+                topic_id
+            ] = "OUTLIER / UNASSIGNED"
+
+            topic_auto_label_map[
+                topic_id
+            ] = "OUTLIER / UNASSIGNED"
+
+            continue
+
+
+        # ----------------------------------------------------
+        # Topic keywords
+        # ----------------------------------------------------
+
+        topic_words = (
+            topic_model.get_topic(
+                topic_id
+            )
+        )
+
+
+        if topic_words:
+
+            keywords = [
+                word
+                for word, score
+                in topic_words[
+                    :top_n_words
+                ]
+            ]
+
+
+            topic_keyword_map[
+                topic_id
+            ] = ", ".join(
+                keywords
+            )
+
+
+            # Short automatic topic label
+            topic_auto_label_map[
+                topic_id
+            ] = " | ".join(
+                keywords[:5]
+            )
+
+
+        else:
+
+            topic_keyword_map[
+                topic_id
+            ] = ""
+
+            topic_auto_label_map[
+                topic_id
+            ] = (
+                f"Topic {topic_id}"
+            )
+
+
+    # ========================================================
+    # ADD LABEL TO EACH DOCUMENT
+    # ========================================================
+
+    working_df[
+        "topic_auto_label"
+    ] = (
+        working_df[
+            "topic_id"
+        ]
+        .map(
+            topic_auto_label_map
+        )
+    )
+
+
+    working_df[
+        "topic_keywords"
+    ] = (
+        working_df[
+            "topic_id"
+        ]
+        .map(
+            topic_keyword_map
+        )
+    )
+
+
+    # ========================================================
+    # ADD TO TOPIC SUMMARY
+    # ========================================================
+
+    topic_info[
+        "Auto_Label"
+    ] = (
+        topic_info[
+            "Topic"
+        ]
+        .map(
+            topic_auto_label_map
+        )
+    )
+
+
+    topic_info[
+        "Topic_Keywords"
+    ] = (
+        topic_info[
+            "Topic"
+        ]
+        .map(
+            topic_keyword_map
+        )
+    )
+
+
+    topic_info[
+        "Topic_Status"
+    ] = (
+        topic_info[
+            "Topic"
+        ]
+        .apply(
+            lambda topic:
+            "OUTLIER / UNASSIGNED"
+            if topic == -1
+            else "TOPIC"
+        )
+    )
+
+
+    # ========================================================
+    # RETURN
     # ========================================================
 
     return {
@@ -537,6 +581,12 @@ def run_topic_model(
 
         "embeddings":
             embeddings,
+
+        "topic_keyword_map":
+            topic_keyword_map,
+
+        "topic_auto_label_map":
+            topic_auto_label_map,
     }
 
 
@@ -549,10 +599,8 @@ def get_topic_keywords(
     topic_id,
     top_n=20,
 ):
-
     """
-    Return keywords and c-TF-IDF scores
-    for a selected topic.
+    Return topic words and c-TF-IDF scores.
     """
 
     try:
@@ -563,11 +611,14 @@ def get_topic_keywords(
             )
         )
 
+
         if not topic:
 
             return []
 
+
         return topic[:top_n]
+
 
     except Exception:
 
@@ -582,10 +633,8 @@ def get_representative_documents(
     topic_model,
     topic_id,
 ):
-
     """
-    Return representative documents
-    for a selected BERTopic topic.
+    Return representative documents for one topic.
     """
 
     try:
@@ -597,11 +646,14 @@ def get_representative_documents(
             )
         )
 
+
         if documents is None:
 
             return []
 
+
         return documents
+
 
     except Exception:
 
